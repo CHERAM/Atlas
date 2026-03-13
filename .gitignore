@@ -7,6 +7,8 @@ AGENT_NOTES*
 *_agent_output*
 *.agent.log
 *.codex.log
+atlas-spec*.md
+atlas-task*.md
 
 # Python cache / virtual env / tooling
 __pycache__/
