@@ -5,7 +5,7 @@ from __future__ import annotations
 import typer
 
 from atlas import __version__
-from atlas.cli.commands import build, context, init, repo, search, sync, web
+from atlas.cli.commands import build, clean, context, init, repo, reset, search, sync, web
 from atlas.core.logging import configure_logging
 
 app = typer.Typer(name="atlas", help="Atlas CLI developer knowledge system.")
@@ -28,6 +28,8 @@ app.command(name="sync")(sync.sync_command)
 app.command(name="build")(build.build_command)
 app.command(name="search")(search.search_command)
 app.command(name="context")(context.context_command)
+app.command(name="clean")(clean.clean_command)
+app.command(name="reset")(reset.reset_command)
 
 repo_app = typer.Typer(help="Manage repository sources.")
 repo_app.command(name="add")(repo.repo_add_command)

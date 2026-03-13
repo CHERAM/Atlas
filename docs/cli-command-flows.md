@@ -240,7 +240,41 @@ Runs retrieval and writes an AI-ready context pack to `.github/atlas/context.md`
 - `src/atlas/context/writer.py`
 - `src/atlas/search/service.py`
 
-## 9. `atlas web add/list/remove/ingest`
+## 9. `atlas clean --cache`
+
+### Purpose
+Removes only the `.atlas-cache/` directory (repos, index, and web cache).
+
+### Entry path
+- `src/atlas/cli/commands/clean.py:clean_command`
+
+### Code flow
+1. The command requires `--cache` and prompts for confirmation unless `--force` is set.
+2. `remove_cache_only` resolves workspace paths and deletes `.atlas-cache/` if present.
+3. The CLI prints removed paths or a no-op message.
+
+### Main code involved
+- `src/atlas/core/cleanup.py`
+- `src/atlas/cli/commands/clean.py`
+
+## 10. `atlas reset --hard`
+
+### Purpose
+Hard reset of the workspace by deleting `.atlas-cache/`, `.github/atlas/`, and `atlas.yaml`.
+
+### Entry path
+- `src/atlas/cli/commands/reset.py:reset_command`
+
+### Code flow
+1. The command requires `--hard` and prompts for confirmation unless `--force` is set.
+2. `remove_hard_reset` resolves workspace paths and deletes the cache dir, GitHub atlas dir, and config file if present.
+3. The CLI prints removed paths or a no-op message.
+
+### Main code involved
+- `src/atlas/core/cleanup.py`
+- `src/atlas/cli/commands/reset.py`
+
+## 11. `atlas web add/list/remove/ingest`
 
 ### Purpose
 Registers documentation URLs and stores one-time raw HTML snapshots for indexing.
@@ -268,7 +302,7 @@ Registers documentation URLs and stores one-time raw HTML snapshots for indexing
 - `src/atlas/web/ingest.py`
 - `src/atlas/web/models.py`
 
-## 10. End-to-End Example Using Your Workflow
+## 12. End-to-End Example Using Your Workflow
 
 For this workflow:
 
@@ -291,7 +325,7 @@ the code path is:
 5. `search` embeds the query, looks up similar chunks, re-ranks them with architecture-first boosts, and prints results.
 6. `context` reuses the same ranked search results and writes a curated markdown artifact for AI handoff.
 
-## 11. Recommended Reading Order For A First Pass
+## 13. Recommended Reading Order For A First Pass
 
 1. `src/atlas/cli/app.py`
 2. `src/atlas/cli/commands/init.py`

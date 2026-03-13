@@ -143,6 +143,27 @@ Context file sections:
 - cross-repo notes
 - suggested prompt for AI agent usage
 
+## Cleanup and Reset
+
+Remove cache only:
+
+```bash
+atlas clean --cache
+```
+
+Hard reset (deletes cache, `.github/atlas/`, and `atlas.yaml`):
+
+```bash
+atlas reset --hard
+```
+
+Skip confirmation prompt:
+
+```bash
+atlas clean --cache --force
+atlas reset --hard --force
+```
+
 ## Web Source Registration & Ingestion
 
 Register docs/wiki/web URL:
