@@ -1,0 +1,49 @@
+# Codex / AI-agent artifacts
+.codex/
+.codex-*/
+.codex*
+AGENT_NOTES*
+*_agent_output*
+*.agent.log
+*.codex.log
+
+# Python cache / virtual env / tooling
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.python-version
+.venv/
+venv/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.tox/
+
+# Build / packaging outputs
+build/
+dist/
+*.egg-info/
+.eggs/
+*.whl
+
+# Local runtime/index/cache artifacts
+.codebuddy-cache/
+.github/atlas/context.md
+.github/atlas/prompts/*.md
+
+# SQLite / local DB artifacts
+*.db
+*.sqlite
+*.sqlite3
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Logs and temp
+*.log
+tmp/
+.tmp/
