@@ -104,8 +104,8 @@ def _display_path(chunk: ChunkView) -> str:
     if chunk.source_type != "repo" or not chunk.repo_name:
         return path
 
-    prefix = f".codebuddy-cache/repos/{chunk.repo_name}/"
-    root_prefix = f".codebuddy-cache/repos/{chunk.repo_name}"
+    prefix = f".atlas-cache/repos/{chunk.repo_name}/"
+    root_prefix = f".atlas-cache/repos/{chunk.repo_name}"
     if path == root_prefix:
         return "."
     if path.startswith(prefix):

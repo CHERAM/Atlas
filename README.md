@@ -43,10 +43,10 @@ atlas init
 This creates:
 - `.github/atlas/`
 - `.github/atlas/prompts/`
-- `.codebuddy-cache/`
-- `.codebuddy-cache/repos/`
-- `.codebuddy-cache/index/`
-- `.codebuddy-cache/web/`
+- `.atlas-cache/`
+- `.atlas-cache/repos/`
+- `.atlas-cache/index/`
+- `.atlas-cache/web/`
 - `atlas.yaml`
 
 ### 2) Add repositories
@@ -172,9 +172,9 @@ atlas web ingest --all
 ```
 
 Raw HTML storage:
-- `.codebuddy-cache/web/<source-id>/<timestamp>.html`
-- `.codebuddy-cache/web/<source-id>/latest.html`
-- `.codebuddy-cache/web/<source-id>/index.json`
+- `.atlas-cache/web/<source-id>/<timestamp>.html`
+- `.atlas-cache/web/<source-id>/latest.html`
+- `.atlas-cache/web/<source-id>/index.json`
 
 ## Typical End-to-End Workflow
 

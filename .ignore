@@ -7,8 +7,6 @@ AGENT_NOTES*
 *_agent_output*
 *.agent.log
 *.codex.log
-atlas-spec*.md
-atlas-task*.md
 
 # Python cache / virtual env / tooling
 __pycache__/
@@ -31,7 +29,7 @@ dist/
 *.whl
 
 # Local runtime/index/cache artifacts
-.atlas-cache/
+.codebuddy-cache/
 .github/atlas/context.md
 .github/atlas/prompts/*.md
 

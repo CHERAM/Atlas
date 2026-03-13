@@ -10,10 +10,10 @@ from pydantic import BaseModel, Field
 class WorkspaceConfig(BaseModel):
     github_dir: str = ".github/atlas"
     prompts_dir: str = ".github/atlas/prompts"
-    cache_dir: str = ".codebuddy-cache"
-    repos_dir: str = ".codebuddy-cache/repos"
-    index_dir: str = ".codebuddy-cache/index"
-    web_dir: str = ".codebuddy-cache/web"
+    cache_dir: str = ".atlas-cache"
+    repos_dir: str = ".atlas-cache/repos"
+    index_dir: str = ".atlas-cache/index"
+    web_dir: str = ".atlas-cache/web"
 
 
 class RepoConfig(BaseModel):

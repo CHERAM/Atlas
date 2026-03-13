@@ -14,7 +14,7 @@ class SearchRankingPathTests(unittest.TestCase):
             source_type="repo",
             source_name="repo-a",
             repo_name="repo-a",
-            workspace_relative_path=".codebuddy-cache/repos/repo-a/src/app.py",
+            workspace_relative_path=".atlas-cache/repos/repo-a/src/app.py",
             source_relative_path="src/app.py",
             file_type="code",
             language_hint="py",

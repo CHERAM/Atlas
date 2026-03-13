@@ -41,7 +41,7 @@ class UrllibHtmlFetcher:
 
 
 class WebIngestionService:
-    """Ingest registered web sources as raw HTML snapshots under `.codebuddy-cache/web/`."""
+    """Ingest registered web sources as raw HTML snapshots under `.atlas-cache/web/`."""
 
     def __init__(
         self,
