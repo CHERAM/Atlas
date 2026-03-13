@@ -40,9 +40,9 @@ Commands overview:
 - Keep command guidance concise and practical.
 
 ## Retrieval Mode Contract
-- After persona selection, use one combined prompt:
-  - `Persona Strengths: <selected-persona-strengths>. Continue in Auto or Manual mode?`
-- If user types `capabilities` or `strengths`, show selected persona strengths again.
+- After mode selection, use one combined prompt:
+  - `Mode Strengths: <selected-mode-strengths>. Continue in Auto or Manual mode?`
+- If user types `capabilities` or `strengths`, show selected mode strengths again.
 - Auto mode workflow:
   1. Ask for prompt.
   2. Run `atlas search "<prompt>"`.
@@ -64,4 +64,9 @@ Commands overview:
   4. `atlas build`
   5. `atlas search "<query>"`
   6. `atlas context "<query>"`
-- Persona setup files are maintained in `.github/atlas_persona.md` and `.github/copilot-instructions.md`.
+- Multi-agent setup files are maintained in:
+  - `.github/atlas_mode.md`
+  - `.github/atlas/agent-contract.md`
+  - `.github/copilot-instructions.md`
+  - `CLAUDE.md`
+  - `AGENTS.md`

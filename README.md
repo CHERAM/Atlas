@@ -228,14 +228,17 @@ Copy all templates into every registered local repository clone `.github/`:
 atlas books pull --all --all-repos
 ```
 
-`atlas init` automatically bootstraps persona activation by creating/updating:
-- `.github/atlas_persona.md`
+`atlas init` automatically bootstraps mode activation by creating/updating:
+- `.github/atlas_mode.md`
 - `.github/atlas-instruction.md`
-- `.github/copilot-instructions.md` (managed persona block)
+- `.github/atlas/agent-contract.md` (canonical multi-agent contract)
+- `.github/copilot-instructions.md` (Copilot adapter)
+- `CLAUDE.md` (Claude adapter)
+- `AGENTS.md` (Codex adapter)
 
-When `atlas_persona.md` is pulled later (or `--all` is used), Atlas updates the same managed block idempotently so newly added books can be refreshed into target repos.
+When `atlas_mode.md` is pulled later (or `--all` is used), Atlas refreshes the same contract/adapter files idempotently so newly added books can be propagated to target repos.
 Use `src/atlas/templates/books/Atlas-Book-Template.md` as the starter template for creating new book files.
-Persona flow supports two retrieval modes after selection:
+Mode flow supports two retrieval modes after selection:
 - `Auto`: Copilot runs `atlas search` then `atlas context`, then answers from `.github/atlas/context.md`.
 - `Manual`: user runs those commands and confirms context is ready; Copilot then answers from `.github/atlas/context.md` without executing commands.
 

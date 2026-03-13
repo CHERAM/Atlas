@@ -11,11 +11,20 @@ from atlas.core.config import load_config
 from atlas.core.errors import AtlasError
 from atlas.core.workspace import detect_workspace_root, ensure_workspace
 
-PERSONA_START_MARKER = "<!-- ATLAS:PERSONA_START -->"
-PERSONA_END_MARKER = "<!-- ATLAS:PERSONA_END -->"
-COPILOT_INSTRUCTIONS_FILENAME = "copilot-instructions.md"
-PERSONA_FILENAME = "atlas_persona.md"
+MODE_START_MARKER = "<!-- ATLAS:MODE_START -->"
+MODE_END_MARKER = "<!-- ATLAS:MODE_END -->"
+MODE_FILENAME = "atlas_mode.md"
 INSTRUCTION_FILENAME = "atlas-instruction.md"
+CONTRACT_FILENAME = "agent-contract.md"
+COPILOT_INSTRUCTIONS_FILENAME = "copilot-instructions.md"
+CLAUDE_FILENAME = "CLAUDE.md"
+AGENTS_FILENAME = "AGENTS.md"
+COPILOT_START_MARKER = "<!-- ATLAS:COPILOT_START -->"
+COPILOT_END_MARKER = "<!-- ATLAS:COPILOT_END -->"
+CLAUDE_START_MARKER = "<!-- ATLAS:CLAUDE_START -->"
+CLAUDE_END_MARKER = "<!-- ATLAS:CLAUDE_END -->"
+AGENTS_START_MARKER = "<!-- ATLAS:AGENTS_START -->"
+AGENTS_END_MARKER = "<!-- ATLAS:AGENTS_END -->"
 
 
 class BooksError(AtlasError):
@@ -64,20 +73,25 @@ def default_templates() -> list[BookTemplate]:
             purpose="Execution framework for diagnosing and validating production bug fixes.",
         ),
         BookTemplate(
-            name="atlas-persona",
-            filename=PERSONA_FILENAME,
-            purpose="Persona activation menu and persona-to-file mapping for Copilot.",
+            name="atlas-mode",
+            filename=MODE_FILENAME,
+            purpose="Mode selection menu and mode-to-file mapping for Copilot.",
         ),
         BookTemplate(
             name="atlas-instruction",
             filename=INSTRUCTION_FILENAME,
             purpose="Atlas command overview and Copilot operation guide.",
         ),
+        BookTemplate(
+            name="atlas-agent-contract",
+            filename=CONTRACT_FILENAME,
+            purpose="Canonical multi-agent contract for mode flow and retrieval behavior.",
+        ),
     ]
 
 
-def persona_mappings() -> list[tuple[str, str]]:
-    """Return persona display names and mapped instruction files."""
+def mode_mappings() -> list[tuple[str, str]]:
+    """Return mode display names and mapped instruction files."""
     return [
         ("Atlas Prompt Creation", "Atlas-Prompt-Creation.md"),
         ("Atlas Java Test Creation", "Atlas-Java-Test-Creation.md"),
@@ -87,15 +101,15 @@ def persona_mappings() -> list[tuple[str, str]]:
     ]
 
 
-def bootstrap_persona_activation(workspace_root: Path, books_dir: Path) -> list[Path]:
-    """Copy persona book and inject managed Copilot instructions for workspace root."""
+def bootstrap_mode_activation(workspace_root: Path, books_dir: Path) -> list[Path]:
+    """Copy mode/contract files and inject managed adapter instructions."""
     github_dir = workspace_root / ".github"
     github_dir.mkdir(parents=True, exist_ok=True)
-    persona_source = books_dir / PERSONA_FILENAME
-    if not persona_source.exists():
-        raise BooksError(f"Persona template missing in workspace books: {persona_source}")
-    persona_target = github_dir / PERSONA_FILENAME
-    shutil.copy2(persona_source, persona_target)
+    mode_source = books_dir / MODE_FILENAME
+    if not mode_source.exists():
+        raise BooksError(f"Mode template missing in workspace books: {mode_source}")
+    mode_target = github_dir / MODE_FILENAME
+    shutil.copy2(mode_source, mode_target)
 
     instruction_source = books_dir / INSTRUCTION_FILENAME
     if not instruction_source.exists():
@@ -103,8 +117,9 @@ def bootstrap_persona_activation(workspace_root: Path, books_dir: Path) -> list[
     instruction_target = github_dir / INSTRUCTION_FILENAME
     shutil.copy2(instruction_source, instruction_target)
 
-    instructions_path = _upsert_copilot_instructions(github_dir)
-    return [persona_target, instruction_target, instructions_path]
+    contract_target = _copy_agent_contract(books_dir=books_dir, target_github_dir=github_dir)
+    adapter_targets = _upsert_agent_adapters(target_github_dir=github_dir)
+    return [mode_target, instruction_target, contract_target, *adapter_targets]
 
 
 def seed_default_templates(books_dir: Path) -> list[Path]:
@@ -157,7 +172,10 @@ def pull_templates(
             raise BooksError(f"Unknown template '{name}'. Available: {valid}")
         selected = [template]
 
-    include_persona_bootstrap = any(template.filename == PERSONA_FILENAME for template in selected)
+    include_mode_bootstrap = any(template.filename == MODE_FILENAME for template in selected)
+    include_contract_refresh = include_mode_bootstrap or any(
+        template.filename == CONTRACT_FILENAME for template in selected
+    )
 
     target_dirs = _resolve_targets(root=root, all_repos=all_repos)
     copied_files: list[Path] = []
@@ -171,6 +189,8 @@ def pull_templates(
             continue
 
         for template in selected:
+            if template.filename == CONTRACT_FILENAME:
+                continue
             source = books_dir / template.filename
             destination = target_dir / template.filename
             try:
@@ -179,15 +199,17 @@ def pull_templates(
             except OSError as exc:
                 errors.append(f"{destination}: {exc}")
 
-        if include_persona_bootstrap:
+        if include_contract_refresh:
             try:
-                instruction_source = books_dir / INSTRUCTION_FILENAME
-                instruction_target = target_dir / INSTRUCTION_FILENAME
-                if instruction_source.exists():
-                    shutil.copy2(instruction_source, instruction_target)
-                    copied_files.append(instruction_target)
-                _upsert_copilot_instructions(target_dir)
-                copied_files.append(target_dir / COPILOT_INSTRUCTIONS_FILENAME)
+                copied_files.append(
+                    _copy_agent_contract(books_dir=books_dir, target_github_dir=target_dir)
+                )
+            except OSError as exc:
+                errors.append(f"{target_dir / 'atlas' / CONTRACT_FILENAME}: {exc}")
+
+        if include_mode_bootstrap:
+            try:
+                copied_files.extend(_upsert_agent_adapters(target_dir))
             except OSError as exc:
                 errors.append(f"{target_dir / COPILOT_INSTRUCTIONS_FILENAME}: {exc}")
 
@@ -197,56 +219,112 @@ def pull_templates(
     return PullSummary(copied_files=copied_files, target_dirs=target_dirs)
 
 
-def _render_persona_managed_block() -> str:
-    mapping_lines = "\n".join(
-        f"- {name} -> .github/{filename}" for name, filename in persona_mappings()
-    )
+def _render_contract_body() -> str:
+    mapping_lines = "\n".join(f"- {name} -> .github/{filename}" for name, filename in mode_mappings())
     return (
-        f"{PERSONA_START_MARKER}\n"
-        "## Atlas Persona Activation\n"
-        "When the user types `activate`, read `.github/atlas_persona.md`, show the persona menu, and wait for selection by number or persona name.\n"
-        "After selection:\n"
-        "1. Confirm selected persona.\n"
-        "2. State: `Now referencing <filename> for guidance`.\n"
-        "3. In one combined message, show `Persona Strengths` for the selected persona and ask: `Continue in Auto or Manual mode?`\n"
-        "4. If user types `capabilities` (or `strengths`), show the selected persona strengths again.\n"
-        "5. Follow mode contract:\n"
-        "   - Auto mode: ask for prompt, run `atlas search \"<prompt>\"`, run `atlas context \"<prompt>\"`, then answer using `.github/atlas/context.md`.\n"
-        "   - Manual mode: ask user to run `atlas search \"<prompt>\"` and `atlas context \"<prompt>\"`, then ask `Context ready? yes/no`; if yes, answer using `.github/atlas/context.md`.\n"
-        "6. In Manual mode, do not run shell commands.\n"
-        "7. On command failure in Auto mode, explain failure and suggest recovery (`atlas init`, `atlas build`, then retry).\n"
-        "8. Adopt selected persona until switched or exited.\n"
-        "Persistent commands while active:\n"
-        "- `switch`: return persona menu immediately.\n"
-        "- `quit` or `exit`: deactivate persona system and return to normal mode.\n"
-        "- `activate <persona name>`: direct switch to that persona.\n"
-        "Persona mapping:\n"
-        f"{mapping_lines}\n"
-        f"{PERSONA_END_MARKER}\n"
+        "Mode selection flow:\n"
+        "1. On `activate`, read `.github/atlas_mode.md`, show mode menu, and wait for selection by number or name.\n"
+        "2. Confirm selected mode and state: `Now referencing <filename> for guidance`.\n"
+        "3. Show `Mode Strengths` and ask: `Continue in Auto or Manual mode?`\n"
+        "4. If user types `capabilities` or `strengths`, show selected mode strengths again.\n\n"
+        "Auto mode:\n"
+        "- Ask for prompt.\n"
+        "- Run `atlas search \"<prompt>\"`.\n"
+        "- Run `atlas context \"<prompt>\"`.\n"
+        "- Answer using `.github/atlas/context.md`.\n\n"
+        "Manual mode:\n"
+        "- Ask user to run `atlas search \"<prompt>\"` and `atlas context \"<prompt>\"`.\n"
+        "- Ask `Context ready? yes/no`.\n"
+        "- If yes, answer using `.github/atlas/context.md`.\n"
+        "- Do not execute shell commands in Manual mode.\n\n"
+        "Persistent commands:\n"
+        "- `switch`: return mode menu.\n"
+        "- `quit` or `exit`: deactivate mode system.\n"
+        "- `activate <mode name>`: direct switch.\n\n"
+        "Mode mapping:\n"
+        f"{mapping_lines}\n\n"
+        "Fallback:\n"
+        "- If command execution is unavailable or fails, explain the issue and suggest recovery (`atlas init`, `atlas build`, then retry).\n"
     )
 
 
-def _upsert_copilot_instructions(target_github_dir: Path) -> Path:
-    managed_block = _render_persona_managed_block()
-    instructions_path = target_github_dir / COPILOT_INSTRUCTIONS_FILENAME
-    if instructions_path.exists():
-        current = instructions_path.read_text(encoding="utf-8")
-    else:
-        current = ""
-
-    pattern = re.compile(
-        rf"{re.escape(PERSONA_START_MARKER)}.*?{re.escape(PERSONA_END_MARKER)}\n?",
-        re.DOTALL,
+def _upsert_agent_adapters(target_github_dir: Path) -> list[Path]:
+    contract_ref = ".github/atlas/agent-contract.md"
+    copilot_body = (
+        "Follow the canonical Atlas agent contract at `.github/atlas/agent-contract.md`.\n"
+        "When command execution is unavailable, automatically follow Manual mode from the contract.\n"
     )
+    claude_body = (
+        "Atlas contract source of truth: `.github/atlas/agent-contract.md`.\n"
+        "Use that contract for mode selection and retrieval behavior.\n"
+        "If shell execution is restricted, use Manual mode behavior.\n"
+    )
+    codex_body = (
+        "Use `.github/atlas/agent-contract.md` as the canonical behavior contract.\n"
+        "Follow mode flow and Auto/Manual retrieval rules from that contract.\n"
+        "Fallback to Manual mode when execution tools are unavailable.\n"
+    )
+
+    copilot_path = _upsert_managed_block(
+        path=target_github_dir / COPILOT_INSTRUCTIONS_FILENAME,
+        start_marker=COPILOT_START_MARKER,
+        end_marker=COPILOT_END_MARKER,
+        title="Atlas Copilot Adapter",
+        body=copilot_body,
+    )
+    repo_root = target_github_dir.parent
+    claude_path = _upsert_managed_block(
+        path=repo_root / CLAUDE_FILENAME,
+        start_marker=CLAUDE_START_MARKER,
+        end_marker=CLAUDE_END_MARKER,
+        title="Atlas Claude Adapter",
+        body=claude_body,
+    )
+    agents_path = _upsert_managed_block(
+        path=repo_root / AGENTS_FILENAME,
+        start_marker=AGENTS_START_MARKER,
+        end_marker=AGENTS_END_MARKER,
+        title="Atlas Codex Adapter",
+        body=codex_body,
+    )
+    _ = contract_ref  # avoid accidental removal from adapter templates if edited
+    return [copilot_path, claude_path, agents_path]
+
+
+def _upsert_managed_block(
+    *,
+    path: Path,
+    start_marker: str,
+    end_marker: str,
+    title: str,
+    body: str,
+) -> Path:
+    managed_block = f"{start_marker}\n## {title}\n{body}{end_marker}\n"
+    current = path.read_text(encoding="utf-8") if path.exists() else ""
+    pattern = re.compile(rf"{re.escape(start_marker)}.*?{re.escape(end_marker)}\n?", re.DOTALL)
     if pattern.search(current):
         updated = pattern.sub(managed_block, current, count=1)
     elif current.strip():
         updated = current.rstrip() + "\n\n" + managed_block
     else:
         updated = managed_block
+    path.write_text(updated, encoding="utf-8")
+    return path
 
-    instructions_path.write_text(updated, encoding="utf-8")
-    return instructions_path
+
+def _copy_agent_contract(*, books_dir: Path, target_github_dir: Path) -> Path:
+    source = books_dir / CONTRACT_FILENAME
+    if not source.exists():
+        raise BooksError(f"Contract template missing in workspace books: {source}")
+    contract_dir = target_github_dir / "atlas"
+    contract_dir.mkdir(parents=True, exist_ok=True)
+    target = contract_dir / CONTRACT_FILENAME
+    header = (
+        "# Atlas Agent Contract\n\n"
+        "This is the canonical, tool-agnostic Atlas behavior contract for Copilot, Claude, and Codex.\n\n"
+    )
+    target.write_text(header + _render_contract_body(), encoding="utf-8")
+    return target
 
 
 def _template_source_dir() -> Path:

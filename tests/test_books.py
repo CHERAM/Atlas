@@ -9,11 +9,14 @@ from typer.testing import CliRunner
 
 from atlas.cli.app import app
 from atlas.core.books import (
+    AGENTS_FILENAME,
     BooksError,
+    CLAUDE_FILENAME,
+    CONTRACT_FILENAME,
     INSTRUCTION_FILENAME,
-    PERSONA_END_MARKER,
-    PERSONA_FILENAME,
-    PERSONA_START_MARKER,
+    MODE_END_MARKER,
+    MODE_FILENAME,
+    MODE_START_MARKER,
     default_templates,
     pull_templates,
     seed_default_templates,
@@ -31,9 +34,9 @@ class BooksTemplateTests(unittest.TestCase):
             first = seed_default_templates(books_dir)
             second = seed_default_templates(books_dir)
 
-            self.assertEqual(len(first), 7)
-            self.assertEqual(len(second), 7)
-            self.assertEqual(len(list(books_dir.glob("*.md"))), 7)
+            self.assertEqual(len(first), 8)
+            self.assertEqual(len(second), 8)
+            self.assertEqual(len(list(books_dir.glob("*.md"))), 8)
 
     def test_pull_single_template_to_current_workspace_github(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -87,12 +90,15 @@ class BooksTemplateTests(unittest.TestCase):
             )
 
             expected_count = len(default_templates()) * 2
-            self.assertEqual(len(summary.copied_files), expected_count + 4)
+            self.assertEqual(len(summary.copied_files), expected_count + 6)
             self.assertTrue((repo_a / ".github" / "Atlas-Code-Review.md").exists())
             self.assertTrue((repo_b / ".github" / "Atlas-Bug-Fix.md").exists())
-            self.assertTrue((repo_a / ".github" / PERSONA_FILENAME).exists())
+            self.assertTrue((repo_a / ".github" / MODE_FILENAME).exists())
             self.assertTrue((repo_a / ".github" / INSTRUCTION_FILENAME).exists())
+            self.assertTrue((repo_a / ".github" / "atlas" / CONTRACT_FILENAME).exists())
             self.assertTrue((repo_b / ".github" / "copilot-instructions.md").exists())
+            self.assertTrue((repo_b / CLAUDE_FILENAME).exists())
+            self.assertTrue((repo_b / AGENTS_FILENAME).exists())
 
     def test_pull_unknown_template_raises(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -130,8 +136,9 @@ class BooksCliTests(unittest.TestCase):
             self.assertEqual(result.exit_code, 0)
             self.assertIn("prompt-creation", result.stdout)
             self.assertIn("java-test-creation", result.stdout)
-            self.assertIn("atlas-persona", result.stdout)
+            self.assertIn("atlas-mode", result.stdout)
             self.assertIn("atlas-instruction", result.stdout)
+            self.assertIn("atlas-agent-contract", result.stdout)
 
     def test_books_pull_all_copies_all_files(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -147,9 +154,12 @@ class BooksCliTests(unittest.TestCase):
             self.assertEqual(result.exit_code, 0)
             self.assertTrue((root / ".github" / "Atlas-Prompt-Creation.md").exists())
             self.assertTrue((root / ".github" / "Atlas-Java-Test-Creation.md").exists())
-            self.assertTrue((root / ".github" / PERSONA_FILENAME).exists())
+            self.assertTrue((root / ".github" / MODE_FILENAME).exists())
             self.assertTrue((root / ".github" / INSTRUCTION_FILENAME).exists())
+            self.assertTrue((root / ".github" / "atlas" / CONTRACT_FILENAME).exists())
             self.assertTrue((root / ".github" / "copilot-instructions.md").exists())
+            self.assertTrue((root / CLAUDE_FILENAME).exists())
+            self.assertTrue((root / AGENTS_FILENAME).exists())
 
     def test_books_pull_all_is_idempotent_for_managed_block_and_preserves_user_content(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -168,31 +178,38 @@ class BooksCliTests(unittest.TestCase):
             self.assertEqual(second.exit_code, 0)
             content = instructions.read_text(encoding="utf-8")
             self.assertIn("My custom note", content)
-            self.assertEqual(content.count(PERSONA_START_MARKER), 1)
-            self.assertEqual(content.count(PERSONA_END_MARKER), 1)
-            self.assertIn("Continue in Auto or Manual mode?", content)
-            self.assertIn("In Manual mode, do not run shell commands.", content)
-            self.assertIn('`atlas search "<prompt>"`', content)
-            self.assertIn('`atlas context "<prompt>"`', content)
-            self.assertIn("Context ready? yes/no", content)
-            self.assertIn("types `capabilities` (or `strengths`)", content)
+            self.assertEqual(content.count("<!-- ATLAS:COPILOT_START -->"), 1)
+            self.assertEqual(content.count("<!-- ATLAS:COPILOT_END -->"), 1)
+            self.assertIn(".github/atlas/agent-contract.md", content)
+            self.assertIn("unavailable", content.lower())
 
-    def test_init_bootstraps_persona_files(self) -> None:
+            claude = (root / CLAUDE_FILENAME).read_text(encoding="utf-8")
+            self.assertEqual(claude.count("<!-- ATLAS:CLAUDE_START -->"), 1)
+            self.assertEqual(claude.count("<!-- ATLAS:CLAUDE_END -->"), 1)
+            self.assertIn(".github/atlas/agent-contract.md", claude)
+
+            agents = (root / AGENTS_FILENAME).read_text(encoding="utf-8")
+            self.assertEqual(agents.count("<!-- ATLAS:AGENTS_START -->"), 1)
+            self.assertEqual(agents.count("<!-- ATLAS:AGENTS_END -->"), 1)
+            self.assertIn(".github/atlas/agent-contract.md", agents)
+
+    def test_init_bootstraps_mode_files(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             with self._chdir(root):
                 result = self.runner.invoke(app, ["init"], catch_exceptions=False)
             self.assertEqual(result.exit_code, 0)
-            self.assertTrue((root / ".github" / PERSONA_FILENAME).exists())
+            self.assertTrue((root / ".github" / MODE_FILENAME).exists())
             self.assertTrue((root / ".github" / INSTRUCTION_FILENAME).exists())
+            self.assertTrue((root / ".github" / "atlas" / CONTRACT_FILENAME).exists())
             instructions = root / ".github" / "copilot-instructions.md"
             self.assertTrue(instructions.exists())
             content = instructions.read_text(encoding="utf-8")
-            self.assertIn(PERSONA_START_MARKER, content)
-            self.assertIn(PERSONA_END_MARKER, content)
-            self.assertIn("Persona Strengths", content)
-            self.assertIn("Continue in Auto or Manual mode?", content)
-            self.assertIn("In Manual mode, do not run shell commands.", content)
+            self.assertIn("<!-- ATLAS:COPILOT_START -->", content)
+            self.assertIn("<!-- ATLAS:COPILOT_END -->", content)
+            self.assertIn(".github/atlas/agent-contract.md", content)
+            self.assertTrue((root / CLAUDE_FILENAME).exists())
+            self.assertTrue((root / AGENTS_FILENAME).exists())
 
     def test_all_runtime_books_have_required_sections(self) -> None:
         required_sections = [
@@ -213,9 +230,24 @@ class BooksCliTests(unittest.TestCase):
 
     def test_books_templates_do_not_contain_codebuddy(self) -> None:
         source_dir = Path("src/atlas/templates/books")
+        legacy_term = "per" + "sona"
         for path in source_dir.glob("*.md"):
             content = path.read_text(encoding="utf-8")
             self.assertNotIn("CodeBuddy", content, f"Found CodeBuddy in {path.name}")
+            self.assertNotIn(legacy_term, content.lower(), f"Found legacy term in {path.name}")
+
+    def test_agent_contract_contains_mode_semantics(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            with self._chdir(root):
+                result = self.runner.invoke(app, ["init"], catch_exceptions=False)
+            self.assertEqual(result.exit_code, 0)
+            contract = (root / ".github" / "atlas" / CONTRACT_FILENAME).read_text(encoding="utf-8")
+            self.assertIn("Mode Strengths", contract)
+            self.assertIn("Auto mode", contract)
+            self.assertIn("Manual mode", contract)
+            self.assertIn(".github/atlas/context.md", contract)
+            self.assertIn("Do not execute shell commands in Manual mode", contract)
 
 
 if __name__ == "__main__":

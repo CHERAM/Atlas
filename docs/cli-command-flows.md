@@ -26,7 +26,7 @@ Creates the Atlas workspace structure in the current project and ensures `atlas.
    - `.atlas-cache/index/`
    - `.atlas-cache/web/`
 5. `seed_default_templates` in `src/atlas/core/books.py` copies built-in task instruction templates from `src/atlas/templates/books/` into `.atlas/books/`.
-6. `bootstrap_persona_activation` copies `.github/atlas_persona.md`, `.github/atlas-instruction.md`, and updates `.github/copilot-instructions.md` with the managed persona block.
+6. `bootstrap_mode_activation` copies `.github/atlas_mode.md`, `.github/atlas-instruction.md`, writes `.github/atlas/agent-contract.md`, and updates adapters: `.github/copilot-instructions.md`, `CLAUDE.md`, and `AGENTS.md`.
 7. If the config was newly created, `save_config` writes canonical defaults.
 8. The command prints the initialized location and whether config was created or reused.
 
@@ -326,10 +326,11 @@ Manages reusable task instruction markdown templates in `.atlas/books/` and copi
    - current workspace `.github/` by default,
    - each registered local repo `.github/` with `--all-repos`.
 3. Files are copied from `.atlas/books/` to target `.github/` directories (overwrite by default).
-4. If `atlas_persona.md` is selected (or `--all`), Atlas refreshes `.github/atlas-instruction.md` and writes/updates `.github/copilot-instructions.md` with a managed persona-activation block.
-5. Managed block enforces post-selection mode choice:
-   - Auto mode: Copilot runs `atlas search` + `atlas context` and answers from `.github/atlas/context.md`.
-   - Manual mode: user runs those commands and confirms context readiness; Copilot answers from context without command execution.
+4. If `atlas_mode.md` is selected (or `--all`), Atlas refreshes:
+   - `.github/atlas-instruction.md`
+   - `.github/atlas/agent-contract.md`
+   - adapter files (`.github/copilot-instructions.md`, `CLAUDE.md`, `AGENTS.md`)
+5. Agent adapters are thin and refer to `.github/atlas/agent-contract.md`.
 6. CLI prints copied count and paths.
 
 ### Main code involved
