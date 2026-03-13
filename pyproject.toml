@@ -22,3 +22,6 @@ package-dir = {"" = "src"}
 [tool.setuptools.packages.find]
 where = ["src"]
 include = ["atlas*"]
+
+[tool.setuptools.package-data]
+atlas = ["templates/books/*.md"]

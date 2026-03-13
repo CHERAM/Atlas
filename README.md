@@ -11,6 +11,7 @@ Atlas helps you:
 - build a local metadata + vector index
 - run ranked search
 - generate AI-ready context in `.github/atlas/context.md`
+- maintain reusable task instruction books in `.atlas/books`
 
 ## Requirements
 
@@ -43,6 +44,7 @@ atlas init
 This creates:
 - `.github/atlas/`
 - `.github/atlas/prompts/`
+- `.atlas/books/`
 - `.atlas-cache/`
 - `.atlas-cache/repos/`
 - `.atlas-cache/index/`
@@ -151,7 +153,7 @@ Remove cache only:
 atlas clean --cache
 ```
 
-Hard reset (deletes cache, `.github/atlas/`, and `atlas.yaml`):
+Hard reset (deletes cache, `.github/atlas/`, `.atlas/books/`, and `atlas.yaml`):
 
 ```bash
 atlas reset --hard
@@ -196,6 +198,46 @@ Raw HTML storage:
 - `.atlas-cache/web/<source-id>/<timestamp>.html`
 - `.atlas-cache/web/<source-id>/latest.html`
 - `.atlas-cache/web/<source-id>/index.json`
+
+## Books Templates
+
+Atlas keeps reusable task instruction templates in `.atlas/books` (source of truth), and can copy them into `.github/` for Copilot/agent workflows.
+The built-in templates are stored in this Atlas repository at `src/atlas/templates/books/` and are copied into your workspace during `atlas init`.
+
+List available templates:
+
+```bash
+atlas books list
+```
+
+Copy one template into current workspace `.github/`:
+
+```bash
+atlas books pull --name prompt-creation
+```
+
+Copy all templates into current workspace `.github/`:
+
+```bash
+atlas books pull --all
+```
+
+Copy all templates into every registered local repository clone `.github/`:
+
+```bash
+atlas books pull --all --all-repos
+```
+
+`atlas init` automatically bootstraps persona activation by creating/updating:
+- `.github/atlas_persona.md`
+- `.github/atlas-instruction.md`
+- `.github/copilot-instructions.md` (managed persona block)
+
+When `atlas_persona.md` is pulled later (or `--all` is used), Atlas updates the same managed block idempotently so newly added books can be refreshed into target repos.
+Use `src/atlas/templates/books/Atlas-Book-Template.md` as the starter template for creating new book files.
+Persona flow supports two retrieval modes after selection:
+- `Auto`: Copilot runs `atlas search` then `atlas context`, then answers from `.github/atlas/context.md`.
+- `Manual`: user runs those commands and confirms context is ready; Copilot then answers from `.github/atlas/context.md` without executing commands.
 
 ## Typical End-to-End Workflow
 

@@ -25,13 +25,16 @@ def detect_workspace_root(start: Path | None = None) -> Path:
     return search_dir
 
 
-def resolve_workspace_paths(root: Path, config: AtlasConfig | None = None) -> WorkspacePaths:
+def resolve_workspace_paths(
+    root: Path, config: AtlasConfig | None = None
+) -> WorkspacePaths:
     """Resolve absolute workspace paths from root and config values."""
     cfg = config or AtlasConfig()
     return WorkspacePaths(
         root=root,
         github_dir=root / cfg.workspace.github_dir,
         prompts_dir=root / cfg.workspace.prompts_dir,
+        books_dir=root / cfg.workspace.books_dir,
         cache_dir=root / cfg.workspace.cache_dir,
         repos_dir=root / cfg.workspace.repos_dir,
         index_dir=root / cfg.workspace.index_dir,
@@ -50,6 +53,7 @@ def ensure_workspace(root: Path, config: AtlasConfig | None = None) -> Workspace
         for directory in [
             paths.github_dir,
             paths.prompts_dir,
+            paths.books_dir,
             paths.cache_dir,
             paths.repos_dir,
             paths.index_dir,

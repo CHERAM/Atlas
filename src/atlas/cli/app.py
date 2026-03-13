@@ -5,7 +5,7 @@ from __future__ import annotations
 import typer
 
 from atlas import __version__
-from atlas.cli.commands import build, clean, context, init, repo, reset, search, sync, web
+from atlas.cli.commands import books, build, clean, context, init, repo, reset, search, sync, web
 from atlas.core.logging import configure_logging
 
 app = typer.Typer(name="atlas", help="Atlas CLI developer knowledge system.")
@@ -43,3 +43,8 @@ web_app.command(name="list")(web.web_list_command)
 web_app.command(name="remove")(web.web_remove_command)
 web_app.command(name="ingest")(web.web_ingest_command)
 app.add_typer(web_app, name="web")
+
+books_app = typer.Typer(help="Manage reusable task instruction books.")
+books_app.command(name="list")(books.books_list_command)
+books_app.command(name="pull")(books.books_pull_command)
+app.add_typer(books_app, name="books")

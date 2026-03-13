@@ -16,6 +16,7 @@ class CleanupTargets:
     root: Path
     cache_dir: Path
     github_dir: Path
+    books_dir: Path
     config_path: Path
 
 
@@ -33,6 +34,7 @@ def resolve_cleanup_targets(start_path: Path | None = None) -> CleanupTargets:
         root=root,
         cache_dir=paths.cache_dir,
         github_dir=paths.github_dir,
+        books_dir=paths.books_dir,
         config_path=paths.config_path,
     )
 
@@ -52,6 +54,8 @@ def remove_hard_reset(start_path: Path | None = None) -> list[Path]:
         removed.append(targets.cache_dir)
     if _safe_remove_dir(targets.github_dir, targets.root):
         removed.append(targets.github_dir)
+    if _safe_remove_dir(targets.books_dir, targets.root):
+        removed.append(targets.books_dir)
     if _safe_remove_file(targets.config_path, targets.root):
         removed.append(targets.config_path)
     return removed

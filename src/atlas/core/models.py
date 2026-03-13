@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 class WorkspaceConfig(BaseModel):
     github_dir: str = ".github/atlas"
     prompts_dir: str = ".github/atlas/prompts"
+    books_dir: str = ".atlas/books"
     cache_dir: str = ".atlas-cache"
     repos_dir: str = ".atlas-cache/repos"
     index_dir: str = ".atlas-cache/index"
@@ -63,6 +64,7 @@ class WorkspacePaths(BaseModel):
     root: Path
     github_dir: Path
     prompts_dir: Path
+    books_dir: Path
     cache_dir: Path
     repos_dir: Path
     index_dir: Path

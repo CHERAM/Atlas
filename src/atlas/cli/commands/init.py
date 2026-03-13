@@ -6,6 +6,7 @@ from pathlib import Path
 
 import typer
 
+from atlas.core.books import bootstrap_persona_activation, seed_default_templates
 from atlas.core.config import load_or_create_config, save_config
 from atlas.core.errors import AtlasError
 from atlas.core.workspace import ensure_workspace
@@ -21,6 +22,8 @@ def init_command(
         config_path = root / "atlas.yaml"
         config, created = load_or_create_config(config_path)
         paths = ensure_workspace(root, config)
+        seeded = seed_default_templates(paths.books_dir)
+        persona_written = bootstrap_persona_activation(root, paths.books_dir)
 
         # Backfill config with canonical relative defaults when first created.
         if created:
@@ -31,5 +34,9 @@ def init_command(
             typer.echo(f"Created {paths.config_path}")
         else:
             typer.echo(f"Reused existing {paths.config_path}")
+        typer.echo(f"Seeded {len(seeded)} books templates in {paths.books_dir}")
+        typer.echo(
+            "Configured persona activation files: " + ", ".join(str(path) for path in persona_written)
+        )
     except AtlasError as exc:
         raise typer.BadParameter(str(exc)) from exc

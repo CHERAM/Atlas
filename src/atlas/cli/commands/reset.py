@@ -8,7 +8,11 @@ from atlas.core.cleanup import remove_hard_reset
 
 
 def reset_command(
-    hard: bool = typer.Option(False, "--hard", help="Delete cache, .github/atlas, and atlas.yaml."),
+    hard: bool = typer.Option(
+        False,
+        "--hard",
+        help="Delete cache, .github/atlas, .atlas/books, and atlas.yaml.",
+    ),
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompt."),
 ) -> None:
     """Reset the Atlas workspace by deleting all local artifacts."""
@@ -17,7 +21,7 @@ def reset_command(
 
     _confirm(
         force,
-        "This will delete .atlas-cache, .github/atlas, and atlas.yaml. Continue?",
+        "This will delete .atlas-cache, .github/atlas, .atlas/books, and atlas.yaml. Continue?",
     )
     removed = remove_hard_reset()
     if removed:

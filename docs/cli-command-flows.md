@@ -20,12 +20,15 @@ Creates the Atlas workspace structure in the current project and ensures `atlas.
 4. `ensure_workspace` in `src/atlas/core/workspace.py` creates:
    - `.github/atlas/`
    - `.github/atlas/prompts/`
+   - `.atlas/books/`
    - `.atlas-cache/`
    - `.atlas-cache/repos/`
    - `.atlas-cache/index/`
    - `.atlas-cache/web/`
-5. If the config was newly created, `save_config` writes canonical defaults.
-6. The command prints the initialized location and whether config was created or reused.
+5. `seed_default_templates` in `src/atlas/core/books.py` copies built-in task instruction templates from `src/atlas/templates/books/` into `.atlas/books/`.
+6. `bootstrap_persona_activation` copies `.github/atlas_persona.md`, `.github/atlas-instruction.md`, and updates `.github/copilot-instructions.md` with the managed persona block.
+7. If the config was newly created, `save_config` writes canonical defaults.
+8. The command prints the initialized location and whether config was created or reused.
 
 ### Main code involved
 - `src/atlas/core/config.py`
@@ -260,14 +263,14 @@ Removes only the `.atlas-cache/` directory (repos, index, and web cache).
 ## 10. `atlas reset --hard`
 
 ### Purpose
-Hard reset of the workspace by deleting `.atlas-cache/`, `.github/atlas/`, and `atlas.yaml`.
+Hard reset of the workspace by deleting `.atlas-cache/`, `.github/atlas/`, `.atlas/books/`, and `atlas.yaml`.
 
 ### Entry path
 - `src/atlas/cli/commands/reset.py:reset_command`
 
 ### Code flow
 1. The command requires `--hard` and prompts for confirmation unless `--force` is set.
-2. `remove_hard_reset` resolves workspace paths and deletes the cache dir, GitHub atlas dir, and config file if present.
+2. `remove_hard_reset` resolves workspace paths and deletes the cache dir, GitHub atlas dir, books dir, and config file if present.
 3. The CLI prints removed paths or a no-op message.
 
 ### Main code involved
@@ -302,7 +305,38 @@ Registers documentation URLs and stores one-time raw HTML snapshots for indexing
 - `src/atlas/web/ingest.py`
 - `src/atlas/web/models.py`
 
-## 12. End-to-End Example Using Your Workflow
+## 12. `atlas books list/pull`
+
+### Purpose
+Manages reusable task instruction markdown templates in `.atlas/books/` and copies them into `.github/` destinations.
+
+### Entry path
+- `src/atlas/cli/commands/books.py`
+
+### Code flow for `atlas books list`
+1. `list_templates()` ensures the workspace and books source folder exist.
+2. `seed_default_templates()` writes/refreshes built-in template files.
+3. CLI prints one line per template: name, filename, purpose.
+
+### Code flow for `atlas books pull`
+1. Requires exactly one selection mode:
+   - `--name <template>`, or
+   - `--all`
+2. `pull_templates()` resolves destination scope:
+   - current workspace `.github/` by default,
+   - each registered local repo `.github/` with `--all-repos`.
+3. Files are copied from `.atlas/books/` to target `.github/` directories (overwrite by default).
+4. If `atlas_persona.md` is selected (or `--all`), Atlas refreshes `.github/atlas-instruction.md` and writes/updates `.github/copilot-instructions.md` with a managed persona-activation block.
+5. Managed block enforces post-selection mode choice:
+   - Auto mode: Copilot runs `atlas search` + `atlas context` and answers from `.github/atlas/context.md`.
+   - Manual mode: user runs those commands and confirms context readiness; Copilot answers from context without command execution.
+6. CLI prints copied count and paths.
+
+### Main code involved
+- `src/atlas/core/books.py`
+- `src/atlas/cli/commands/books.py`
+
+## 13. End-to-End Example Using Your Workflow
 
 For this workflow:
 
