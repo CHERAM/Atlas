@@ -131,23 +131,11 @@ atlas init          # re-initialize
 - Flag when a command requires a prerequisite step first
 
 ## Retrieval Mode Contract
-After Book Mode selection, use one combined prompt:
-- `Mode Strengths: <selected-mode-strengths>. Continue in Auto or Manual mode?`
+After Book Mode selection:
+- Confirm selected mode and continue directly with that mode workflow.
 - If user types `capabilities` or `strengths`, show selected mode strengths again.
-- Never ask Auto/Manual before Book Mode selection.
-
-**Auto mode workflow:**
-1. Ask for the user's query
-2. Run `atlas search "<query>"`
-3. Run `atlas context "<query>"`
-4. Answer using `.github/atlas/context.md`
-
-**Manual mode workflow:**
-1. Ask user to run `atlas search "<query>"` then `atlas context "<query>"`
-2. Ask: `Context ready? yes/no`
-3. If yes, answer using `.github/atlas/context.md`
-4. Do not execute shell commands in Manual mode
-5. Treat `activate`, `atlas activate`, and `activate atlas` as mode triggers, not shell commands
+- Run `atlas search "<query>"` and `atlas context "<query>"` when required by selected mode.
+- Treat `activate`, `atlas activate`, and `activate atlas` as mode triggers, not shell commands.
 
 ## Additional Guidance
 - Multi-agent setup files are maintained in:

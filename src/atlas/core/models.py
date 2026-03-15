@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Literal
 
 from pydantic import BaseModel, Field
+from pydantic import field_validator
 
 
 class WorkspaceConfig(BaseModel):
@@ -50,6 +52,29 @@ class SearchConfig(BaseModel):
     critical_k: int = 5
 
 
+class AgentsConfig(BaseModel):
+    selected: list[Literal["copilot", "claude", "codex"]] = Field(
+        default_factory=lambda: ["copilot", "claude", "codex"]
+    )
+
+    @field_validator("selected", mode="before")
+    @classmethod
+    def normalize_selected(cls, value: object) -> object:
+        if not isinstance(value, list):
+            return value
+        normalized: list[str] = []
+        seen: set[str] = set()
+        for item in value:
+            if not isinstance(item, str):
+                normalized.append(item)  # let pydantic raise a clear validation error
+                continue
+            lowered = item.strip().lower()
+            if lowered and lowered not in seen:
+                normalized.append(lowered)
+                seen.add(lowered)
+        return normalized
+
+
 class AtlasConfig(BaseModel):
     version: int = 1
     workspace: WorkspaceConfig = Field(default_factory=WorkspaceConfig)
@@ -58,6 +83,7 @@ class AtlasConfig(BaseModel):
     build: BuildConfig = Field(default_factory=BuildConfig)
     embedding: EmbeddingConfig = Field(default_factory=EmbeddingConfig)
     search: SearchConfig = Field(default_factory=SearchConfig)
+    agents: AgentsConfig = Field(default_factory=AgentsConfig)
 
 
 class WorkspacePaths(BaseModel):

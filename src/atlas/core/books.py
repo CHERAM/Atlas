@@ -25,6 +25,7 @@ CLAUDE_START_MARKER = "<!-- ATLAS:CLAUDE_START -->"
 CLAUDE_END_MARKER = "<!-- ATLAS:CLAUDE_END -->"
 AGENTS_START_MARKER = "<!-- ATLAS:AGENTS_START -->"
 AGENTS_END_MARKER = "<!-- ATLAS:AGENTS_END -->"
+SUPPORTED_AGENTS = ("copilot", "claude", "codex")
 
 
 class BooksError(AtlasError):
@@ -88,7 +89,12 @@ def _parse_frontmatter(text: str) -> dict[str, str]:
     return result
 
 
-def bootstrap_mode_activation(workspace_root: Path, books_dir: Path) -> list[Path]:
+def bootstrap_mode_activation(
+    workspace_root: Path,
+    books_dir: Path,
+    *,
+    selected_agents: list[str],
+) -> list[Path]:
     """Copy mode/contract files and inject managed adapter instructions."""
     github_dir = workspace_root / ".github"
     github_dir.mkdir(parents=True, exist_ok=True)
@@ -105,7 +111,9 @@ def bootstrap_mode_activation(workspace_root: Path, books_dir: Path) -> list[Pat
     shutil.copy2(instruction_source, instruction_target)
 
     contract_target = _copy_agent_contract(books_dir=books_dir, target_github_dir=github_dir)
-    adapter_targets = _upsert_agent_adapters(target_github_dir=github_dir)
+    adapter_targets = _upsert_agent_adapters(
+        target_github_dir=github_dir, selected_agents=selected_agents
+    )
     return [mode_target, instruction_target, contract_target, *adapter_targets]
 
 
@@ -145,6 +153,7 @@ def pull_templates(
         raise BooksError("Specify exactly one of --name <template> or --all.")
 
     root, books_dir = _load_paths(start_path)
+    selected_agents = _selected_agents(root / "atlas.yaml")
     seed_default_templates(books_dir)
     available = {template.name: template for template in default_templates()}
 
@@ -196,7 +205,9 @@ def pull_templates(
 
         if include_mode_bootstrap:
             try:
-                copied_files.extend(_upsert_agent_adapters(target_dir))
+                copied_files.extend(
+                    _upsert_agent_adapters(target_dir, selected_agents=selected_agents)
+                )
             except OSError as exc:
                 errors.append(f"{target_dir / COPILOT_INSTRUCTIONS_FILENAME}: {exc}")
 
@@ -215,31 +226,21 @@ def _render_contract_body() -> str:
         "Book mode selection flow:\n"
         "1. On `activate`, `atlas activate`, or `activate atlas`, read `.github/atlas_mode.md`, show the Book Mode menu, and wait for selection by number or name.\n"
         "2. Confirm selected Book Mode and state: `Now referencing <filename> for guidance`.\n"
-        "3. Show `Mode Strengths` and ask for execution style: `Continue in Auto or Manual mode?`\n"
+        "3. Follow the selected mode instructions directly.\n"
         "4. If user types `capabilities` or `strengths`, show selected mode strengths again.\n\n"
         "Required activation response:\n"
         "- Immediately print the Book Mode menu exactly once and ask: `Select a mode by number or name.`\n"
         "- Do not stop at an activation acknowledgment.\n"
         "- Menu to show:\n"
         f"{numbered_modes}\n\n"
-        "Execution style gating:\n"
-        "- Never ask Auto/Manual before a Book Mode has been selected.\n"
-        "- Auto/Manual is execution style for the selected Book Mode, not the menu itself.\n\n"
         "Activation command handling:\n"
         "- Treat `activate`, `atlas activate`, and `activate atlas` as chat-mode triggers.\n"
         "- Never execute those activation phrases as shell/terminal commands.\n\n"
-        "Auto mode:\n"
-        "- Ask for prompt.\n"
-        "- Run `atlas search \"<prompt>\"`.\n"
-        "- Run `atlas context \"<prompt>\"`.\n"
-        "- Answer using `.github/atlas/context.md`.\n\n"
-        "Manual mode:\n"
-        "- Ask user to run `atlas search \"<prompt>\"` and `atlas context \"<prompt>\"`.\n"
-        "- Ask `Context ready? yes/no`.\n"
-        "- If yes, answer using `.github/atlas/context.md`.\n"
-        "- Do not execute shell commands in Manual mode.\n\n"
+        "Retrieval guidance:\n"
+        "- Use `atlas search \"<prompt>\"` and `atlas context \"<prompt>\"` as needed for the selected mode.\n"
+        "- Ground answers in `.github/atlas/context.md` when context is available.\n\n"
         "Persistent commands:\n"
-        "- `switch`: clear current Book Mode and execution style, then return Book Mode menu.\n"
+        "- `switch`: clear current Book Mode, then return Book Mode menu.\n"
         "- `quit` or `exit`: deactivate mode system.\n"
         "- `activate <mode name>`: direct switch.\n"
         "- `atlas activate <mode name>`: direct switch alias.\n\n"
@@ -250,53 +251,70 @@ def _render_contract_body() -> str:
     )
 
 
-def _upsert_agent_adapters(target_github_dir: Path) -> list[Path]:
+def _upsert_agent_adapters(target_github_dir: Path, *, selected_agents: list[str]) -> list[Path]:
     contract_ref = ".github/atlas/agent-contract.md"
     copilot_body = (
         "Follow the canonical Atlas agent contract at `.github/atlas/agent-contract.md`.\n"
-        "When command execution is unavailable, automatically follow Manual mode from the contract.\n"
         "Treat `activate`, `atlas activate`, and `activate atlas` as conversational Atlas mode triggers.\n"
         "Do not execute these activation phrases as terminal commands.\n"
         "When activation or switch is triggered, immediately show the numbered Book Mode menu and ask for mode selection.\n"
-        "Do not ask Auto/Manual until after Book Mode selection is complete.\n"
+        "After Book Mode selection, follow the selected mode directly.\n"
     )
     claude_body = (
         "Atlas contract source of truth: `.github/atlas/agent-contract.md`.\n"
         "Use that contract for mode selection and retrieval behavior.\n"
-        "If shell execution is restricted, use Manual mode behavior.\n"
         "Treat `activate`, `atlas activate`, and `activate atlas` as conversational mode triggers, not shell commands.\n"
+        "After Book Mode selection, follow the selected mode directly.\n"
     )
     codex_body = (
         "Use `.github/atlas/agent-contract.md` as the canonical behavior contract.\n"
-        "Follow mode flow and Auto/Manual retrieval rules from that contract.\n"
-        "Fallback to Manual mode when execution tools are unavailable.\n"
+        "Follow mode flow and retrieval rules from that contract.\n"
         "Treat `activate`, `atlas activate`, and `activate atlas` as conversational mode triggers, not shell commands.\n"
+        "After Book Mode selection, follow the selected mode directly.\n"
     )
 
-    copilot_path = _upsert_managed_block(
-        path=target_github_dir / COPILOT_INSTRUCTIONS_FILENAME,
-        start_marker=COPILOT_START_MARKER,
-        end_marker=COPILOT_END_MARKER,
-        title="Atlas Copilot Adapter",
-        body=copilot_body,
-    )
     repo_root = target_github_dir.parent
-    claude_path = _upsert_managed_block(
-        path=repo_root / CLAUDE_FILENAME,
-        start_marker=CLAUDE_START_MARKER,
-        end_marker=CLAUDE_END_MARKER,
-        title="Atlas Claude Adapter",
-        body=claude_body,
-    )
-    agents_path = _upsert_managed_block(
-        path=repo_root / AGENTS_FILENAME,
-        start_marker=AGENTS_START_MARKER,
-        end_marker=AGENTS_END_MARKER,
-        title="Atlas Codex Adapter",
-        body=codex_body,
-    )
+    targets: list[Path] = []
+    selected = {agent.strip().lower() for agent in selected_agents if agent.strip()}
+
+    if "copilot" in selected:
+        targets.append(
+            _upsert_managed_block(
+                path=target_github_dir / COPILOT_INSTRUCTIONS_FILENAME,
+                start_marker=COPILOT_START_MARKER,
+                end_marker=COPILOT_END_MARKER,
+                title="Atlas Copilot Adapter",
+                body=copilot_body,
+            )
+        )
+    if "claude" in selected:
+        targets.append(
+            _upsert_managed_block(
+                path=repo_root / CLAUDE_FILENAME,
+                start_marker=CLAUDE_START_MARKER,
+                end_marker=CLAUDE_END_MARKER,
+                title="Atlas Claude Adapter",
+                body=claude_body,
+            )
+        )
+    if "codex" in selected:
+        targets.append(
+            _upsert_managed_block(
+                path=repo_root / AGENTS_FILENAME,
+                start_marker=AGENTS_START_MARKER,
+                end_marker=AGENTS_END_MARKER,
+                title="Atlas Codex Adapter",
+                body=codex_body,
+            )
+        )
     _ = contract_ref  # avoid accidental removal from adapter templates if edited
-    return [copilot_path, claude_path, agents_path]
+    return targets
+
+
+def _selected_agents(config_path: Path) -> list[str]:
+    config = load_config(config_path)
+    agents = [name for name in config.agents.selected if name in SUPPORTED_AGENTS]
+    return agents if agents else list(SUPPORTED_AGENTS)
 
 
 def _upsert_managed_block(

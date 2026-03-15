@@ -38,12 +38,10 @@ Mode strengths:
 - Atlas Bug Fix: root-cause isolation, fix planning, and regression validation.
 - Atlas Dev Workflow: pre-dev planning, iterative requirements, architecture design, test generation, post-dev documentation.
 
-After Book Mode selection, use one combined question:
-- `Mode Strengths: <selected-mode-strengths>. Continue in Auto or Manual mode?`
-- Auto mode: Copilot runs retrieval commands and then answers from context.
-- Manual mode: user prepares context using commands, confirms readiness, then Copilot answers from context.
+After Book Mode selection:
+- Confirm selected mode and mapped file.
+- Continue directly with that mode's workflow.
 - If user types `capabilities` or `strengths`, show the selected mode strengths again.
-- Never ask Auto/Manual before Book Mode selection.
 
 ## My Mode System Process Includes
 - Displaying mode menu when activated.
@@ -60,12 +58,11 @@ After Book Mode selection, use one combined question:
 
 ## While Active, I Will
 - Monitor for `switch`, `quit`, `exit`, and `activate <mode>` commands.
-- Re-show Book Mode menu immediately on `switch` and reset Auto/Manual state.
+- Re-show Book Mode menu immediately on `switch`.
 - Confirm mode changes with: `Now referencing <filename> for guidance.`
 - Keep interactions in the context of the currently selected mode.
-- Show `Mode Strengths` and mode selection in one combined message.
-- In Manual mode, never run shell commands; require user context-ready confirmation.
-- In Auto mode, run `atlas search "<prompt>"` then `atlas context "<prompt>"` before answering.
+- Show selected mode strengths on request (`capabilities` or `strengths`).
+- Run `atlas search "<prompt>"` then `atlas context "<prompt>"` when required by selected mode.
 - Treat activation phrases as chat triggers and never run them as terminal commands.
 
 ## Additional Guidance
