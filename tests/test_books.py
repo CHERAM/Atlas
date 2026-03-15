@@ -33,10 +33,11 @@ class BooksTemplateTests(unittest.TestCase):
             books_dir = Path(tmp) / ".atlas" / "books"
             first = seed_default_templates(books_dir)
             second = seed_default_templates(books_dir)
+            expected = len(default_templates())
 
-            self.assertEqual(len(first), 8)
-            self.assertEqual(len(second), 8)
-            self.assertEqual(len(list(books_dir.glob("*.md"))), 8)
+            self.assertEqual(len(first), expected)
+            self.assertEqual(len(second), expected)
+            self.assertEqual(len(list(books_dir.glob("*.md"))), expected)
 
     def test_pull_single_template_to_current_workspace_github(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

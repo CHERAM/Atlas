@@ -45,49 +45,8 @@ class PullSummary:
 
 
 def default_templates() -> list[BookTemplate]:
-    """Return Atlas book template metadata."""
-    return [
-        BookTemplate(
-            name="prompt-creation",
-            filename="Atlas-Prompt-Creation.md",
-            purpose="Guide for crafting high-quality prompts with clear scope and constraints.",
-        ),
-        BookTemplate(
-            name="java-test-creation",
-            filename="Atlas-Java-Test-Creation.md",
-            purpose="Playbook for adding reliable JUnit/integration tests for Java services.",
-        ),
-        BookTemplate(
-            name="api-contract",
-            filename="Atlas-API-Contract.md",
-            purpose="Checklist for designing or updating API contracts safely.",
-        ),
-        BookTemplate(
-            name="code-review",
-            filename="Atlas-Code-Review.md",
-            purpose="Structured review guide for finding functional and maintainability risks.",
-        ),
-        BookTemplate(
-            name="bug-fix",
-            filename="Atlas-Bug-Fix.md",
-            purpose="Execution framework for diagnosing and validating production bug fixes.",
-        ),
-        BookTemplate(
-            name="atlas-mode",
-            filename=MODE_FILENAME,
-            purpose="Mode selection menu and mode-to-file mapping for Copilot.",
-        ),
-        BookTemplate(
-            name="atlas-instruction",
-            filename=INSTRUCTION_FILENAME,
-            purpose="Atlas command overview and Copilot operation guide.",
-        ),
-        BookTemplate(
-            name="atlas-agent-contract",
-            filename=CONTRACT_FILENAME,
-            purpose="Canonical multi-agent contract for mode flow and retrieval behavior.",
-        ),
-    ]
+    """Discover book templates by scanning the built-in templates directory for frontmatter."""
+    return _discover_templates(_template_source_dir())
 
 
 def mode_mappings() -> list[tuple[str, str]]:
@@ -98,7 +57,35 @@ def mode_mappings() -> list[tuple[str, str]]:
         ("Atlas API Contract", "Atlas-API-Contract.md"),
         ("Atlas Code Review", "Atlas-Code-Review.md"),
         ("Atlas Bug Fix", "Atlas-Bug-Fix.md"),
+        ("Atlas Dev Workflow", "Atlas-Dev-Workflow.md"),
     ]
+
+
+def _discover_templates(source_dir: Path) -> list[BookTemplate]:
+    """Scan source_dir for .md files with valid name/purpose frontmatter."""
+    templates: list[BookTemplate] = []
+    for md_file in sorted(source_dir.glob("*.md")):
+        meta = _parse_frontmatter(md_file.read_text(encoding="utf-8"))
+        name = meta.get("name", "").strip()
+        purpose = meta.get("purpose", "").strip()
+        if name and purpose:
+            templates.append(BookTemplate(name=name, filename=md_file.name, purpose=purpose))
+    return templates
+
+
+def _parse_frontmatter(text: str) -> dict[str, str]:
+    """Parse simple key: value YAML frontmatter delimited by --- lines."""
+    lines = text.splitlines()
+    if not lines or lines[0].strip() != "---":
+        return {}
+    result: dict[str, str] = {}
+    for line in lines[1:]:
+        if line.strip() == "---":
+            break
+        if ":" in line:
+            key, _, value = line.partition(":")
+            result[key.strip()] = value.strip()
+    return result
 
 
 def bootstrap_mode_activation(workspace_root: Path, books_dir: Path) -> list[Path]:
@@ -221,12 +208,26 @@ def pull_templates(
 
 def _render_contract_body() -> str:
     mapping_lines = "\n".join(f"- {name} -> .github/{filename}" for name, filename in mode_mappings())
+    numbered_modes = "\n".join(
+        f"{index}. {name}" for index, (name, _) in enumerate(mode_mappings(), start=1)
+    )
     return (
-        "Mode selection flow:\n"
-        "1. On `activate`, read `.github/atlas_mode.md`, show mode menu, and wait for selection by number or name.\n"
-        "2. Confirm selected mode and state: `Now referencing <filename> for guidance`.\n"
-        "3. Show `Mode Strengths` and ask: `Continue in Auto or Manual mode?`\n"
+        "Book mode selection flow:\n"
+        "1. On `activate`, `atlas activate`, or `activate atlas`, read `.github/atlas_mode.md`, show the Book Mode menu, and wait for selection by number or name.\n"
+        "2. Confirm selected Book Mode and state: `Now referencing <filename> for guidance`.\n"
+        "3. Show `Mode Strengths` and ask for execution style: `Continue in Auto or Manual mode?`\n"
         "4. If user types `capabilities` or `strengths`, show selected mode strengths again.\n\n"
+        "Required activation response:\n"
+        "- Immediately print the Book Mode menu exactly once and ask: `Select a mode by number or name.`\n"
+        "- Do not stop at an activation acknowledgment.\n"
+        "- Menu to show:\n"
+        f"{numbered_modes}\n\n"
+        "Execution style gating:\n"
+        "- Never ask Auto/Manual before a Book Mode has been selected.\n"
+        "- Auto/Manual is execution style for the selected Book Mode, not the menu itself.\n\n"
+        "Activation command handling:\n"
+        "- Treat `activate`, `atlas activate`, and `activate atlas` as chat-mode triggers.\n"
+        "- Never execute those activation phrases as shell/terminal commands.\n\n"
         "Auto mode:\n"
         "- Ask for prompt.\n"
         "- Run `atlas search \"<prompt>\"`.\n"
@@ -238,9 +239,10 @@ def _render_contract_body() -> str:
         "- If yes, answer using `.github/atlas/context.md`.\n"
         "- Do not execute shell commands in Manual mode.\n\n"
         "Persistent commands:\n"
-        "- `switch`: return mode menu.\n"
+        "- `switch`: clear current Book Mode and execution style, then return Book Mode menu.\n"
         "- `quit` or `exit`: deactivate mode system.\n"
-        "- `activate <mode name>`: direct switch.\n\n"
+        "- `activate <mode name>`: direct switch.\n"
+        "- `atlas activate <mode name>`: direct switch alias.\n\n"
         "Mode mapping:\n"
         f"{mapping_lines}\n\n"
         "Fallback:\n"
@@ -253,16 +255,22 @@ def _upsert_agent_adapters(target_github_dir: Path) -> list[Path]:
     copilot_body = (
         "Follow the canonical Atlas agent contract at `.github/atlas/agent-contract.md`.\n"
         "When command execution is unavailable, automatically follow Manual mode from the contract.\n"
+        "Treat `activate`, `atlas activate`, and `activate atlas` as conversational Atlas mode triggers.\n"
+        "Do not execute these activation phrases as terminal commands.\n"
+        "When activation or switch is triggered, immediately show the numbered Book Mode menu and ask for mode selection.\n"
+        "Do not ask Auto/Manual until after Book Mode selection is complete.\n"
     )
     claude_body = (
         "Atlas contract source of truth: `.github/atlas/agent-contract.md`.\n"
         "Use that contract for mode selection and retrieval behavior.\n"
         "If shell execution is restricted, use Manual mode behavior.\n"
+        "Treat `activate`, `atlas activate`, and `activate atlas` as conversational mode triggers, not shell commands.\n"
     )
     codex_body = (
         "Use `.github/atlas/agent-contract.md` as the canonical behavior contract.\n"
         "Follow mode flow and Auto/Manual retrieval rules from that contract.\n"
         "Fallback to Manual mode when execution tools are unavailable.\n"
+        "Treat `activate`, `atlas activate`, and `activate atlas` as conversational mode triggers, not shell commands.\n"
     )
 
     copilot_path = _upsert_managed_block(
